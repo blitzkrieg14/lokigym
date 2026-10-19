@@ -1094,7 +1094,7 @@ export default function SettingsDashboard({
                   {activeIntegrationSubTab === 'darts' && (
                     <div className="space-y-4">
                       <p className="text-[#CCC] leading-relaxed">
-                        Stream live workout telemetry directly to your local Darts Scoreboard app (<code className="text-brand font-mono">C:\Users\justi\OneDrive\Desktop\darts</code>). While you exercise and throw darts, your scoreboard display can show your live session duration, active rest timers, current exercise, and total weight lifted.
+                        Stream live workout telemetry directly to your Darts Scoreboard app. While you exercise and throw darts, your scoreboard display can show your live session duration, active rest timers, current exercise, and total weight lifted.
                       </p>
 
                       <form onSubmit={handleSaveDartsSettings} className="space-y-3">

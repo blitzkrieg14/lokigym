@@ -22,16 +22,35 @@ export interface WorkoutLiveTelemetry {
 const STORAGE_KEY_URL = 'workout_darts_server_url';
 const STORAGE_KEY_ENABLED = 'workout_darts_broadcast_enabled';
 
+/**
+ * Normalizes input server URLs (e.g. "192.168.1.50:8080" -> "http://192.168.1.50:8080")
+ */
+export function normalizeServerUrl(rawUrl: string): string {
+  let url = (rawUrl || '').trim();
+  if (!url) return '';
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `http://${url}`;
+  }
+  return url.replace(/\/+$/, '');
+}
+
 export function getDartsServerUrl(): string {
-  return localStorage.getItem(STORAGE_KEY_URL) || '';
+  const raw = localStorage.getItem(STORAGE_KEY_URL) || '';
+  return normalizeServerUrl(raw);
 }
 
 export function setDartsServerUrl(url: string): void {
-  localStorage.setItem(STORAGE_KEY_URL, url.trim());
+  const normalized = normalizeServerUrl(url);
+  localStorage.setItem(STORAGE_KEY_URL, normalized);
 }
 
 export function getDartsBroadcastEnabled(): boolean {
-  return localStorage.getItem(STORAGE_KEY_ENABLED) === 'true';
+  const val = localStorage.getItem(STORAGE_KEY_ENABLED);
+  // Default to true if not explicitly set to 'false'
+  if (val === null) {
+    return true;
+  }
+  return val === 'true';
 }
 
 export function setDartsBroadcastEnabled(enabled: boolean): void {
@@ -60,17 +79,18 @@ export async function broadcastWorkoutTelemetry(
   }
   lastSendTime = now;
 
-  const cleanUrl = serverUrl.replace(/\/+$/, '');
-  const endpoint = `${cleanUrl}/api/workout/live`;
+  const endpoint = `${serverUrl}/api/workout/live`;
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
 
     const payload: WorkoutLiveTelemetry = {
       ...data,
       timestamp: now
     };
+
+    console.log('[Loki Telemetry] Sending workout broadcast to', endpoint, payload);
 
     const res = await fetch(endpoint, {
       method: 'POST',
@@ -82,9 +102,16 @@ export async function broadcastWorkoutTelemetry(
     });
 
     clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      console.warn(`[Loki Telemetry] Server responded with HTTP status ${res.status}`);
+    } else {
+      console.log(`[Loki Telemetry] Broadcast successful (status: ${res.status})`);
+    }
+
     return res.ok;
-  } catch (e) {
-    // Silently fail on network packet drop during live workout
+  } catch (e: any) {
+    console.warn('[Loki Telemetry] Broadcast network error:', e?.message || e);
     return false;
   }
 }
@@ -99,12 +126,12 @@ export async function testDartsServerConnection(
     return { success: false, message: 'Please enter a valid server URL (e.g. http://192.168.1.50:8080)' };
   }
 
-  const cleanUrl = url.trim().replace(/\/+$/, '');
+  const cleanUrl = normalizeServerUrl(url);
   const endpoint = `${cleanUrl}/api/workout/live`;
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
 
     const testPayload: WorkoutLiveTelemetry = {
       active: false,

@@ -243,6 +243,7 @@ export default function ActiveWorkoutSession({
   const accumulatedSetSecondsRef = useRef<number>(0);
   const hasRestWarningFiredRef = useRef<boolean>(false);
   const hasExerciseWarningFiredRef = useRef<boolean>(false);
+  const isFinishedOrCancelledRef = useRef<boolean>(false);
 
   useEffect(() => {
     setSelectedSetIdxOverride(null);
@@ -386,6 +387,41 @@ export default function ActiveWorkoutSession({
     };
   }, [isPaused, isResting]);
 
+  // Immediate kickoff broadcast to external display / Darts board on workout start
+  useEffect(() => {
+    let initialWeight = 0;
+    let initialCompletedSets = 0;
+    exercises.forEach(ex => {
+      (ex.sets || []).forEach(set => {
+        if (set.isCompleted) {
+          initialCompletedSets++;
+          initialWeight += (set.reps || 0) * (set.weight || 0);
+        }
+      });
+    });
+
+    const activeSetIndex = selectedSetIdxOverride !== null 
+      ? selectedSetIdxOverride 
+      : (currentExercise?.sets || []).findIndex(s => !s.isCompleted);
+    const displaySetNumber = activeSetIndex >= 0 ? activeSetIndex + 1 : (currentExercise?.sets?.length || 1);
+
+    broadcastWorkoutTelemetry({
+      active: true,
+      workoutName: workout.name,
+      durationSeconds: 0,
+      formattedDuration: '00:00',
+      currentExercise: currentExercise?.name || '',
+      currentSet: displaySetNumber,
+      totalSetsForExercise: currentExercise?.sets?.length || 0,
+      totalSetsCompleted: initialCompletedSets,
+      totalWeightMoved: initialWeight,
+      weightUnit: weightUnit,
+      isResting: isResting,
+      restRemaining: isResting ? restRemaining : 0,
+      totalRestDuration: totalRestDuration
+    }, true);
+  }, []);
+
   // Periodic broadcast to Darts Scoreboard / external display
   useEffect(() => {
     if (isPaused) return;
@@ -395,7 +431,7 @@ export default function ActiveWorkoutSession({
     let completedSets = 0;
     exercises.forEach(ex => {
       (ex.sets || []).forEach(set => {
-        if (set.completed) {
+        if (set.isCompleted) {
           completedSets++;
           totalWeight += (set.reps || 0) * (set.weight || 0);
         }
@@ -404,7 +440,7 @@ export default function ActiveWorkoutSession({
 
     const activeSetIndex = selectedSetIdxOverride !== null 
       ? selectedSetIdxOverride 
-      : (currentExercise?.sets || []).findIndex(s => !s.completed);
+      : (currentExercise?.sets || []).findIndex(s => !s.isCompleted);
     const displaySetNumber = activeSetIndex >= 0 ? activeSetIndex + 1 : (currentExercise?.sets?.length || 1);
 
     const mins = Math.floor(workoutSeconds / 60);
@@ -428,10 +464,12 @@ export default function ActiveWorkoutSession({
     });
   }, [workoutSeconds, isResting, restRemaining, currentExerciseIdx, exercises, isPaused, workout.name, weightUnit, selectedSetIdxOverride, totalRestDuration]);
 
-  // Notify external display when session ends or unmounts
+  // Notify external display when session ends or unmounts (guarded)
   useEffect(() => {
     return () => {
-      broadcastWorkoutTelemetry({ active: false }, true);
+      if (!isFinishedOrCancelledRef.current) {
+        broadcastWorkoutTelemetry({ active: false }, true);
+      }
     };
   }, []);
 
@@ -822,6 +860,9 @@ export default function ActiveWorkoutSession({
 
   // Complete Workout Session
   const finishWorkout = () => {
+    isFinishedOrCancelledRef.current = true;
+    broadcastWorkoutTelemetry({ active: false }, true);
+
     const totalSetsCompleted = exercises.reduce((sum, ex) => {
       return sum + ex.sets.filter(s => s.isCompleted).length;
     }, 0);
@@ -839,6 +880,12 @@ export default function ActiveWorkoutSession({
     }, 0);
 
     onComplete(workoutSeconds, totalSetsCompleted, pbsBrokenThisSession.length, totalWeightLifted, exercises);
+  };
+
+  const handleCancelSession = () => {
+    isFinishedOrCancelledRef.current = true;
+    broadcastWorkoutTelemetry({ active: false }, true);
+    onCancel();
   };
 
   // Automatically finish workout once all sets of all exercises are completed (non Quick-Start mode)
@@ -877,7 +924,7 @@ export default function ActiveWorkoutSession({
             </h2>
           </div>
           <button
-            onClick={onCancel}
+            onClick={handleCancelSession}
             className="px-3 py-1.5 border border-brand text-xs font-mono font-bold text-brand bg-dark-panel cursor-pointer hover:bg-brand/10 hover:border-brand/80 transition"
           >
             Cancel Session
@@ -989,7 +1036,7 @@ export default function ActiveWorkoutSession({
         <h2 className="text-xl font-display font-black italic uppercase text-white mb-2">No Exercises Found</h2>
         <p className="text-[#CCC] text-xs max-w-sm mb-6 leading-relaxed">This routine does not contain any exercises. Please add movements to this routine before launching.</p>
         <button 
-          onClick={onCancel} 
+          onClick={handleCancelSession} 
           className="py-3.5 px-8 bg-brand hover:bg-white text-black font-black uppercase text-xs tracking-wider transition-colors cursor-pointer"
         >
           Go Back
@@ -1582,7 +1629,7 @@ export default function ActiveWorkoutSession({
         {/* Action Controls */}
         <div className="flex gap-4 border-t border-border-dark pt-3 mt-2">
           <button
-            onClick={onCancel}
+            onClick={handleCancelSession}
             className="flex-1 py-4 px-4 bg-dark-panel hover:bg-rose-950/20 text-rose-400 hover:text-rose-300 text-xs font-mono font-black uppercase tracking-widest border border-border-dark hover:border-rose-900/40 transition rounded-none cursor-pointer"
           >
             <X className="w-4 h-4" />

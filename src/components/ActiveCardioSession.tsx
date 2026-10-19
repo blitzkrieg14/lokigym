@@ -3,6 +3,7 @@ import { Play, Pause, Square, Navigation, Award, Map, RefreshCw, Check, Activity
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { TextToSpeech } from '@capacitor-community/text-to-speech';
+import { broadcastWorkoutTelemetry } from '../services/broadcastService';
 
 // Voice prompt speaker with browser speech synthesis fallback
 const speakText = async (text: string) => {
@@ -262,6 +263,41 @@ export default function ActiveCardioSession({ activity, mode, targetMinutes, tra
     };
   }, [isPaused, mode, targetMinutes]);
 
+  const isFinishedOrCancelledRef = useRef<boolean>(false);
+
+  // Broadcast cardio session telemetry to Darts Scoreboard
+  useEffect(() => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    const formattedDuration = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    const displayDist = distanceUnit === 'mi' ? (distance * 0.621371).toFixed(2) : distance.toFixed(2);
+    const unitLabel = distanceUnit === 'mi' ? 'mi' : 'km';
+
+    broadcastWorkoutTelemetry({
+      active: true,
+      workoutName: `Cardio: ${activity}`,
+      durationSeconds: seconds,
+      formattedDuration,
+      currentExercise: `${trackingProfile || activity} (${displayDist} ${unitLabel})`,
+      currentSet: 1,
+      totalSetsForExercise: 1,
+      totalSetsCompleted: 1,
+      totalWeightMoved: 0,
+      weightUnit: unitLabel,
+      isResting: false,
+      restRemaining: 0,
+      totalRestDuration: 0
+    });
+  }, [seconds, activity, distance, distanceUnit, trackingProfile]);
+
+  useEffect(() => {
+    return () => {
+      if (!isFinishedOrCancelledRef.current) {
+        broadcastWorkoutTelemetry({ active: false }, true);
+      }
+    };
+  }, []);
+
   // Geolocation watch listener
   useEffect(() => {
     if (isPaused) {
@@ -519,6 +555,8 @@ export default function ActiveCardioSession({ activity, mode, targetMinutes, tra
           type="button"
           onClick={() => {
             if (confirm("Are you sure you want to discard this cardio session?")) {
+              isFinishedOrCancelledRef.current = true;
+              broadcastWorkoutTelemetry({ active: false }, true);
               onCancel();
             }
           }}
@@ -545,6 +583,8 @@ export default function ActiveCardioSession({ activity, mode, targetMinutes, tra
         <button
           type="button"
           onClick={() => {
+            isFinishedOrCancelledRef.current = true;
+            broadcastWorkoutTelemetry({ active: false }, true);
             onFinish({
               activity,
               durationSeconds: seconds,
