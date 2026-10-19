@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Workout, WorkoutExercise, SetRecord, PersonalBest, Exercise } from '../types';
 import { INITIAL_EXERCISES } from '../data';
 import ActiveCardioSession, { LeafletMap } from './ActiveCardioSession';
+import { broadcastWorkoutTelemetry } from '../services/broadcastService';
 import { 
   Play, Pause, RotateCcw, Check, ChevronRight, ChevronLeft, 
   Flame, HelpCircle, X, Plus, Minus, Trophy, Calendar, Clock,
@@ -384,6 +385,55 @@ export default function ActiveWorkoutSession({
       if (workoutTimerRef.current) clearInterval(workoutTimerRef.current);
     };
   }, [isPaused, isResting]);
+
+  // Periodic broadcast to Darts Scoreboard / external display
+  useEffect(() => {
+    if (isPaused) return;
+
+    // Calculate total weight lifted so far in the current session
+    let totalWeight = 0;
+    let completedSets = 0;
+    exercises.forEach(ex => {
+      (ex.sets || []).forEach(set => {
+        if (set.completed) {
+          completedSets++;
+          totalWeight += (set.reps || 0) * (set.weight || 0);
+        }
+      });
+    });
+
+    const activeSetIndex = selectedSetIdxOverride !== null 
+      ? selectedSetIdxOverride 
+      : (currentExercise?.sets || []).findIndex(s => !s.completed);
+    const displaySetNumber = activeSetIndex >= 0 ? activeSetIndex + 1 : (currentExercise?.sets?.length || 1);
+
+    const mins = Math.floor(workoutSeconds / 60);
+    const secs = workoutSeconds % 60;
+    const formattedDuration = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+    broadcastWorkoutTelemetry({
+      active: true,
+      workoutName: workout.name,
+      durationSeconds: workoutSeconds,
+      formattedDuration,
+      currentExercise: currentExercise?.name || '',
+      currentSet: displaySetNumber,
+      totalSetsForExercise: currentExercise?.sets?.length || 0,
+      totalSetsCompleted: completedSets,
+      totalWeightMoved: totalWeight,
+      weightUnit: weightUnit,
+      isResting: isResting,
+      restRemaining: isResting ? restRemaining : 0,
+      totalRestDuration: totalRestDuration
+    });
+  }, [workoutSeconds, isResting, restRemaining, currentExerciseIdx, exercises, isPaused, workout.name, weightUnit, selectedSetIdxOverride, totalRestDuration]);
+
+  // Notify external display when session ends or unmounts
+  useEffect(() => {
+    return () => {
+      broadcastWorkoutTelemetry({ active: false }, true);
+    };
+  }, []);
 
   // 2. Rest Timer Countdown (using delta-time for background accuracy)
   useEffect(() => {

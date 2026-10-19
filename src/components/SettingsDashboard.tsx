@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Cloud, Upload, Download, Home, Settings, Palette, ChevronDown, Sparkles,
   Heart, CheckCircle2, ShieldAlert, Footprints, Droplets, User, Scale,
-  RefreshCw, ExternalLink, AlertCircle
+  RefreshCw, ExternalLink, AlertCircle, Target
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Health } from '@capgo/capacitor-health';
@@ -10,6 +10,7 @@ import { WaterLog } from '../types';
 import WaterTracker from './WaterTracker';
 import { APP_VERSION, GITHUB_REPO_URL, GITHUB_RELEASES_URL, GITHUB_FULL_REPO } from '../version';
 import { checkForUpdate, triggerDownload, getAutoCheckEnabled, setAutoCheckEnabled, AppUpdateInfo } from '../services/updateService';
+import { getDartsServerUrl, setDartsServerUrl, getDartsBroadcastEnabled, setDartsBroadcastEnabled, testDartsServerConnection } from '../services/broadcastService';
 
 interface SettingsDashboardProps {
   onExportBackup: () => void;
@@ -82,8 +83,32 @@ export default function SettingsDashboard({
 
   // Gemini API Integration State
   const [geminiKeyInput, setGeminiKeyInput] = useState(geminiApiKey);
-  const [activeIntegrationSubTab, setActiveIntegrationSubTab] = useState<'gemini' | 'discord' | 'ha'>('gemini');
+  const [activeIntegrationSubTab, setActiveIntegrationSubTab] = useState<'gemini' | 'discord' | 'ha' | 'darts'>('gemini');
   const [isTestingGemini, setIsTestingGemini] = useState(false);
+
+  // Darts Scoreboard Integration State
+  const [dartsUrlInput, setDartsUrlInput] = useState(() => getDartsServerUrl());
+  const [dartsBroadcastInput, setDartsBroadcastInput] = useState(() => getDartsBroadcastEnabled());
+  const [isTestingDarts, setIsTestingDarts] = useState(false);
+  const [dartsTestResult, setDartsTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleSaveDartsSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    setDartsServerUrl(dartsUrlInput);
+    setDartsBroadcastEnabled(dartsBroadcastInput);
+    alert("Darts Scoreboard settings saved successfully!");
+  };
+
+  const handleTestDarts = async () => {
+    setIsTestingDarts(true);
+    setDartsTestResult(null);
+    try {
+      const res = await testDartsServerConnection(dartsUrlInput);
+      setDartsTestResult(res);
+    } finally {
+      setIsTestingDarts(false);
+    }
+  };
 
   const fileInputRefBackup = useRef<HTMLInputElement>(null);
 
@@ -849,7 +874,7 @@ export default function SettingsDashboard({
                 
                 {/* Segmented Sub-Tabs */}
                 <div className="flex bg-black border border-border-dark p-1 max-w-2xl">
-                  {(['gemini', 'discord', 'ha'] as const).map((tab) => (
+                  {(['gemini', 'discord', 'ha', 'darts'] as const).map((tab) => (
                     <button
                       key={tab}
                       type="button"
@@ -860,7 +885,7 @@ export default function SettingsDashboard({
                           : 'text-[#888] hover:text-white hover:bg-dark-surface'
                       }`}
                     >
-                      {tab === 'gemini' ? 'Gemini AI' : tab === 'discord' ? 'Discord' : 'Home Assistant'}
+                      {tab === 'gemini' ? 'Gemini AI' : tab === 'discord' ? 'Discord' : tab === 'ha' ? 'Home Assistant' : 'Darts Scoreboard'}
                     </button>
                   ))}
                 </div>
@@ -1060,6 +1085,82 @@ export default function SettingsDashboard({
                               <span>{isTestingHA ? 'Sending Webhook...' : 'Test HA Trigger'}</span>
                             </button>
                           )}
+                        </div>
+                      </form>
+                    </div>
+                  )}
+
+                  {/* Darts Scoreboard Sub-Tab */}
+                  {activeIntegrationSubTab === 'darts' && (
+                    <div className="space-y-4">
+                      <p className="text-[#CCC] leading-relaxed">
+                        Stream live workout telemetry directly to your local Darts Scoreboard app (<code className="text-brand font-mono">C:\Users\justi\OneDrive\Desktop\darts</code>). While you exercise and throw darts, your scoreboard display can show your live session duration, active rest timers, current exercise, and total weight lifted.
+                      </p>
+
+                      <form onSubmit={handleSaveDartsSettings} className="space-y-3">
+                        <div>
+                          <label className="text-[9px] font-mono text-zinc-400 font-bold uppercase tracking-wider block">
+                            Darts Server HTTP Address
+                          </label>
+                          <input 
+                            type="text" 
+                            placeholder="http://192.168.1.50:8080 or http://localhost:8080"
+                            value={dartsUrlInput}
+                            onChange={(e) => setDartsUrlInput(e.target.value)}
+                            className="mt-1 w-full bg-dark-surface border border-border-dark p-2.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-brand rounded-none font-mono"
+                          />
+                          <p className="text-[10px] text-zinc-500 mt-1 font-mono">
+                            Enter the IP address and port of the machine running your Darts app. Make sure both devices are on the same local Wi-Fi.
+                          </p>
+                        </div>
+
+                        <div className="p-3 bg-dark-surface/60 border border-border-dark space-y-2">
+                          <label className="flex items-center gap-2 text-zinc-300 font-bold cursor-pointer select-none">
+                            <input 
+                              type="checkbox"
+                              checked={dartsBroadcastInput}
+                              onChange={(e) => setDartsBroadcastInput(e.target.checked)}
+                              className="rounded-none accent-brand w-3.5 h-3.5"
+                            />
+                            <span>Enable Live Workout Broadcast</span>
+                          </label>
+                          <p className="text-[10px] text-zinc-500 font-mono pl-5">
+                            Broadcasts elapsed time, rest countdowns, and volume lifted every second while a workout is active.
+                          </p>
+                        </div>
+
+                        {dartsTestResult && (
+                          <div className={`p-3 border font-mono text-[11px] flex items-center gap-2 ${
+                            dartsTestResult.success 
+                              ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300' 
+                              : 'bg-red-950/40 border-red-500/40 text-red-300'
+                          }`}>
+                            {dartsTestResult.success ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                            ) : (
+                              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                            )}
+                            <span>{dartsTestResult.message}</span>
+                          </div>
+                        )}
+
+                        <div className="flex flex-col sm:flex-row gap-3 pt-1">
+                          <button
+                            type="submit"
+                            className="flex-1 py-2.5 px-4 bg-brand hover:bg-white text-black text-xs font-mono font-black uppercase tracking-wider transition rounded-none cursor-pointer flex items-center justify-center gap-1.5"
+                          >
+                            <span>Save Darts Settings</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={handleTestDarts}
+                            disabled={isTestingDarts}
+                            className="flex-1 py-2.5 px-4 bg-dark-surface hover:bg-dark-card text-white text-xs font-mono font-black uppercase tracking-wider border border-border-dark transition rounded-none cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${isTestingDarts ? 'animate-spin' : ''}`} />
+                            <span>{isTestingDarts ? 'Testing Connection...' : 'Test Server Connection'}</span>
+                          </button>
                         </div>
                       </form>
                     </div>
