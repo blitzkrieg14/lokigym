@@ -2,14 +2,16 @@ name: Build and Release Android APK
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
   workflow_dispatch:
     inputs:
       version:
         description: 'Release version (e.g. v3.4.0)'
-        required: true
-        default: 'v3.3.0'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -39,7 +41,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Install NPM Dependencies
-        run: npm ci || npm install
+        run: npm install --legacy-peer-deps
 
       - name: Build Web Application
         run: npm run build
@@ -56,17 +58,17 @@ jobs:
 
       - name: Prepare APK Asset
         run: |
-          RELEASE_TAG="${{ github.ref_name }}"
-          if [ -z "$RELEASE_TAG" ] || [ "$RELEASE_TAG" = "main" ]; then
-            RELEASE_TAG="${{ github.event.inputs.version || 'v3.3.0' }}"
+          TAG="${{ github.ref_name }}"
+          if [ "$TAG" = "main" ] || [ -z "$TAG" ]; then
+            PKG_VER=$(node -p "require('./package.json').version")
+            TAG="v${PKG_VER}"
           fi
           mkdir -p release-output
-          cp android/app/build/outputs/apk/debug/app-debug.apk "release-output/LokiGym-${RELEASE_TAG}.apk"
-          echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_ENV
+          cp android/app/build/outputs/apk/debug/app-debug.apk "release-output/LokiGym-${TAG}.apk"
+          echo "RELEASE_TAG=${TAG}" >> $GITHUB_ENV
 
-      - name: Create GitHub Release
+      - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           name: Loki Gym ${{ env.RELEASE_TAG }}
@@ -75,8 +77,8 @@ jobs:
             
             Automated Android APK build from branch `${{ github.ref_name }}`.
             
-            #### 📲 Installation:
-            1. Download the `LokiGym-${{ env.RELEASE_TAG }}.apk` file below directly onto your Android device.
+            #### 📲 Installation Instructions:
+            1. Download the **`LokiGym-${{ env.RELEASE_TAG }}.apk`** file below directly to your Android device.
             2. Tap the downloaded file in your notification bar or file manager to install.
             3. Grant "Install Unknown Apps" permission if prompted by Android.
           files: |
