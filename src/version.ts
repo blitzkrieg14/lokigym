@@ -1,7 +1,7 @@
 /**
  * Application Version and GitHub Repository Configuration
  */
-export const APP_VERSION = '3.3.2';
+export const APP_VERSION = '3.3.3';
 export const GITHUB_OWNER = 'blitzkrieg14';
 export const GITHUB_REPO = 'lokigym';
 export const GITHUB_FULL_REPO = `${GITHUB_OWNER}/${GITHUB_REPO}`;

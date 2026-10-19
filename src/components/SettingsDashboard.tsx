@@ -96,6 +96,7 @@ export default function SettingsDashboard({
     e.preventDefault();
     setDartsServerUrl(dartsUrlInput);
     setDartsBroadcastEnabled(dartsBroadcastInput);
+    setDartsUrlInput(getDartsServerUrl());
     alert("Darts Scoreboard settings saved successfully!");
   };
 
