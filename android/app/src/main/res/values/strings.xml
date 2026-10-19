@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Loki Gym</string>
+    <string name="title_activity_main">Loki Gym</string>
+    <string name="package_name">com.lokigym.app</string>
+    <string name="custom_url_scheme">com.lokigym.app</string>
+</resources>

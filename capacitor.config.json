@@ -1,0 +1,8 @@
+{
+  "appId": "com.lokigym.app",
+  "appName": "Loki Gym",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

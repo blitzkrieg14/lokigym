@@ -1,0 +1,18 @@
+{
+  "name": "Loki Gym",
+  "short_name": "Loki Gym",
+  "description": "Nordic Loki-inspired high-intensity workout tracking, routine designer, and body composition streams.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0A0A",
+  "theme_color": "#E2FE30",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/pwa_icon_512_1782540582378.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

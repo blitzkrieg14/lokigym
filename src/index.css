@@ -1,0 +1,111 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:ital,wght@0,300..750;1,300..750&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  
+  --color-brand: var(--color-brand-dynamic);
+  --color-dark-bg: var(--color-bg-dynamic);
+  --color-dark-panel: var(--color-panel-dynamic);
+  --color-dark-card: var(--color-card-dynamic);
+  --color-dark-surface: var(--color-surface-dynamic);
+  --color-border-dark: var(--color-border-dynamic);
+  --color-border-accent: var(--color-border-accent-dynamic);
+}
+
+:root {
+  --color-brand-dynamic: #FFE600; /* High contrast Yellow Highlight */
+  --color-bg-dynamic: #070601; /* Amber-Black Background */
+  --color-panel-dynamic: #121004; /* Tinted Panel */
+  --color-card-dynamic: #1C1907; /* Lighter Card */
+  --color-surface-dynamic: #171505; /* Lighter Surface */
+  --color-border-dynamic: #332F0C; /* Bright Amber-Yellow Border */
+  --color-border-accent-dynamic: #4A4412; /* Brighter Accent Border */
+}
+
+:root[data-theme="crimson"] {
+  --color-brand-dynamic: #EF4444; /* Crimson Red */
+  --color-bg-dynamic: #0C0505; /* Crimson-Black Background */
+  --color-panel-dynamic: #1A0C0C; /* Tinted Panel */
+  --color-card-dynamic: #261313; /* Lighter Crimson Card */
+  --color-surface-dynamic: #200F0F; /* Lighter Surface */
+  --color-border-dynamic: #451E1E; /* Bright Crimson Border */
+  --color-border-accent-dynamic: #5E2727; /* Brighter Accent Border */
+}
+
+:root[data-theme="frost"] {
+  --color-brand-dynamic: #06B6D4; /* Ice Blue */
+  --color-bg-dynamic: #04070E;
+  --color-panel-dynamic: #090F1B;
+  --color-card-dynamic: #0E1628;
+  --color-surface-dynamic: #0B1221;
+  --color-border-dynamic: #1E2D4A;
+  --color-border-accent-dynamic: #2A3F67;
+}
+
+:root[data-theme="cyberpunk"] {
+  --color-brand-dynamic: #EC4899; /* Neon Pink */
+  --color-bg-dynamic: #07030C;
+  --color-panel-dynamic: #0F071A;
+  --color-card-dynamic: #160B26;
+  --color-surface-dynamic: #12091F;
+  --color-border-dynamic: #2B1547;
+  --color-border-accent-dynamic: #3C1E63;
+}
+
+:root[data-theme="forest"] {
+  --color-brand-dynamic: #10B981; /* Emerald Green */
+  --color-bg-dynamic: #030805;
+  --color-panel-dynamic: #06130B;
+  --color-card-dynamic: #0C1E11;
+  --color-surface-dynamic: #09180E;
+  --color-border-dynamic: #1B3F24;
+  --color-border-accent-dynamic: #265932;
+}
+
+body {
+  background-color: var(--color-dark-bg);
+  color: #FFFFFF; /* High contrast White Text in Dark Theme */
+  font-family: var(--font-sans);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Custom Scrollbar for High Density Theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-dark-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-dark);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-brand);
+}
+
+/* Shifting Plasma / Liquid Flow Animations */
+@keyframes plasma-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes liquid-bubble {
+  0% { transform: scale(0.9) translateY(-50%); opacity: 0.8; }
+  50% { transform: scale(1.2) translateY(-50%); opacity: 1; }
+  100% { transform: scale(0.9) translateY(-50%); opacity: 0.8; }
+}
+
+.animate-plasma-flow {
+  background-size: 200% auto;
+  animation: plasma-flow 3s linear infinite;
+}
+
+.animate-liquid-bubble {
+  animation: liquid-bubble 2s ease-in-out infinite;
+}
